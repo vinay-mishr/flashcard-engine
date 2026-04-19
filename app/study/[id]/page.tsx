@@ -1,13 +1,9 @@
 'use client';
 import { useEffect, useState } from 'react';
-import FlashCard from '@/components/FlashCard';
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '@/lib/supabase';
+import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+import FlashCard from '@/components/FlashCard';
 
 interface CardProgress {
   next_review_at: string;
@@ -31,32 +27,45 @@ interface SessionStats {
 }
 
 export default function StudyPage({ params }: { params: { id: string } }) {
+  const router = useRouter();
   const [cards, setCards] = useState<Card[]>([]);
   const [current, setCurrent] = useState(0);
-  const [sessionStats, setSessionStats] = useState<SessionStats>({ correct: 0, hard: 0, again: 0 });
+  const [sessionStats, setSessionStats] = useState<SessionStats>({
+    correct: 0,
+    hard: 0,
+    again: 0,
+  });
   const [done, setDone] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  // Defined BEFORE useEffect so it's available when useEffect runs
   useEffect(() => {
     let cancelled = false;
 
-    (async () => {
-      const { data } = await supabase
-        .from('cards')
-        .select('*, card_progress(*)')
-        .eq('deck_id', params.id)
-        .lte('card_progress.next_review_at', new Date().toISOString())
-        .order('created_at');
-
-      if (!cancelled) {
-        setCards((data as Card[]) ?? []);
-        setLoading(false);
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) {
+        router.push('/auth');
+        return;
       }
-    })();
 
-    return () => { cancelled = true; };
-  }, [params.id]);
+      (async () => {
+        const { data } = await supabase
+          .from('cards')
+          .select('*, card_progress(*)')
+          .eq('deck_id', params.id)
+          .lte('card_progress.next_review_at', new Date().toISOString())
+          .order('created_at');
+
+        if (!cancelled) {
+          setCards((data as Card[]) ?? []);
+          setLoading(false);
+        }
+      })();
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [params.id, router]);
 
   async function handleRate(quality: 0 | 1 | 2 | 3 | 4 | 5) {
     const card = cards[current];
@@ -68,7 +77,7 @@ export default function StudyPage({ params }: { params: { id: string } }) {
     await fetch('/api/review', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ card_id: card.id, quality })
+      body: JSON.stringify({ card_id: card.id, quality }),
     });
 
     if (current + 1 >= cards.length) {
@@ -109,12 +118,20 @@ export default function StudyPage({ params }: { params: { id: string } }) {
             <p className="text-sm text-red-500">Again</p>
           </div>
         </div>
-        <button
-          onClick={() => window.location.href = `/deck/${params.id}`}
-          className="bg-indigo-600 text-white px-8 py-3 rounded-xl font-semibold hover:bg-indigo-700 transition"
-        >
-          Back to Deck
-        </button>
+        <div className="flex gap-3">
+          <button
+            onClick={() => router.push(`/deck/${params.id}`)}
+            className="bg-indigo-600 text-white px-8 py-3 rounded-xl font-semibold hover:bg-indigo-700 transition"
+          >
+            Back to Deck
+          </button>
+          <button
+            onClick={() => router.push('/dashboard')}
+            className="border border-gray-200 text-gray-500 px-8 py-3 rounded-xl font-semibold hover:bg-gray-50 transition"
+          >
+            Dashboard
+          </button>
+        </div>
       </motion.div>
     );
   }
@@ -126,7 +143,7 @@ export default function StudyPage({ params }: { params: { id: string } }) {
         <h2 className="text-2xl font-bold text-gray-700">Nothing due today!</h2>
         <p className="text-gray-400">Come back tomorrow for your next review.</p>
         <button
-          onClick={() => window.location.href = `/deck/${params.id}`}
+          onClick={() => router.push(`/deck/${params.id}`)}
           className="mt-4 bg-indigo-600 text-white px-6 py-2 rounded-xl font-semibold hover:bg-indigo-700 transition"
         >
           Back to Deck
@@ -140,6 +157,7 @@ export default function StudyPage({ params }: { params: { id: string } }) {
 
   return (
     <div className="min-h-screen bg-gray-50 p-6 flex flex-col">
+
       {/* Progress bar */}
       <div className="max-w-2xl mx-auto w-full mb-8">
         <div className="flex justify-between text-sm text-gray-400 mb-2">
@@ -176,6 +194,20 @@ export default function StudyPage({ params }: { params: { id: string } }) {
           </motion.div>
         </AnimatePresence>
       </div>
+
+      {/* Bottom nav */}
+      <div className="max-w-2xl mx-auto w-full mt-6 flex justify-between items-center">
+        <button
+          onClick={() => router.push(`/deck/${params.id}`)}
+          className="text-sm text-gray-400 hover:text-gray-600 transition"
+        >
+          ← Exit Session
+        </button>
+        <p className="text-xs text-gray-300">
+          {cards.length - current - 1} cards remaining
+        </p>
+      </div>
+
     </div>
   );
 }

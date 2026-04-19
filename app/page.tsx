@@ -1,200 +1,203 @@
 'use client';
-import { useState, useEffect } from 'react';
-import { createClient } from '@supabase/supabase-js';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Upload, Brain, BookOpen } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Brain, Zap, BarChart3, ArrowRight, BookOpen, Star } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+export default function LandingPage() {
+  const router = useRouter();
 
-interface Deck {
-  id: string;
-  name: string;
-  emoji: string;
-  card_count: number;
-  pdf_name: string;
-  created_at: string;
-}
+  const steps = [
+    {
+      icon: '📄',
+      step: 'Step 1: Upload',
+      title: 'Upload Your Material',
+      desc: 'Drop in any PDF — textbook chapters, class notes, study guides. Our AI reads and understands everything.',
+    },
+    {
+      icon: '🃏',
+      step: 'Step 2: Practice',
+      title: 'Smart Flashcards Generated',
+      desc: 'Get 15–25 high-quality cards covering key concepts, definitions, formulas, and worked examples.',
+    },
+    {
+      icon: '🧠',
+      step: 'Step 3: Master',
+      title: 'Test Yourself',
+      desc: 'Our spaced repetition engine shows you cards at the perfect moment. Hard cards come back. Easy ones fade.',
+    },
+  ];
 
-const EMOJIS = ['📚','🧮','🔬','🌍','📝','⚗️','🏛️','💡','🎯','🧠'];
-
-export default function Dashboard() {
-  const [decks, setDecks] = useState<Deck[]>([]);
-  const [showUpload, setShowUpload] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [file, setFile] = useState<File | null>(null);
-  const [deckName, setDeckName] = useState('');
-  const [emoji, setEmoji] = useState('📚');
-  const [uploadStatus, setUploadStatus] = useState('');
-
-  useEffect(() => { loadDecks(); }, []);
-
-  async function loadDecks() {
-    const { data } = await supabase
-      .from('decks')
-      .select('*')
-      .order('created_at', { ascending: false });
-    setDecks((data as Deck[]) || []);
-  }
-
-  async function handleUpload() {
-    if (!file || !deckName) return;
-    setUploading(true);
-    setUploadStatus('Extracting text from PDF...');
-
-    const form = new FormData();
-    form.append('pdf', file);
-    form.append('name', deckName);
-    form.append('emoji', emoji);
-
-    setUploadStatus('Claude is generating smart flashcards... ✨');
-    const res = await fetch('/api/generate', { method: 'POST', body: form });
-    const data = await res.json() as { cardCount: number; error?: string };
-
-    if (res.ok) {
-      setUploadStatus(`Created ${data.cardCount} flashcards! 🎉`);
-      setTimeout(() => {
-        setShowUpload(false);
-        setUploading(false);
-        setUploadStatus('');
-        loadDecks();
-      }, 1500);
-    } else {
-      setUploadStatus(`Error: ${data.error ?? 'Something went wrong'}`);
-      setUploading(false);
-    }
-  }
+  const features = [
+    {
+      icon: <Zap className="text-yellow-500" size={22} />,
+      title: 'AI-Powered Extraction',
+      desc: 'Not shallow scraping. Cards written like a great teacher made them — concepts, edge cases, examples.',
+    },
+    {
+      icon: <BarChart3 className="text-indigo-500" size={22} />,
+      title: 'Spaced Repetition (SM-2)',
+      desc: 'The scientifically proven algorithm used by Anki. Cards you struggle with show up more. Mastered ones fade.',
+    },
+    {
+      icon: <BookOpen className="text-green-500" size={22} />,
+      title: 'Track Your Progress',
+      desc: 'See what you have mastered, what is shaky, and what is due for review. Stay motivated, not overwhelmed.',
+    },
+    {
+      icon: <Star className="text-pink-500" size={22} />,
+      title: 'Beautiful Experience',
+      desc: 'Smooth card flips, streak tracking, session stats. Studying does not have to be boring.',
+    },
+  ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 p-6">
-      <div className="max-w-5xl mx-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-10">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
-              <Brain className="text-indigo-600" /> FlashMind
-            </h1>
-            <p className="text-gray-400 text-sm mt-1">Turn any PDF into a smart study deck</p>
+    <div className="min-h-screen bg-white">
+
+      {/* Navbar */}
+      <nav className="flex items-center justify-between px-8 py-5 max-w-6xl mx-auto">
+        <div className="flex items-center gap-2">
+          <div className="bg-indigo-600 text-white p-2 rounded-xl">
+            <Brain size={20} />
           </div>
+          <span className="text-xl font-bold text-gray-900">FlashMind</span>
+        </div>
+        <div className="flex items-center gap-3">
           <button
-            onClick={() => setShowUpload(true)}
-            className="flex items-center gap-2 bg-indigo-600 text-white px-5 py-3 rounded-xl font-semibold hover:bg-indigo-700 transition shadow-lg shadow-indigo-200"
+            onClick={() => router.push('/auth')}
+            className="text-gray-600 hover:text-gray-900 font-medium text-sm px-4 py-2 transition"
           >
-            <Upload size={16} /> New Deck
+            Sign In
+          </button>
+          <button
+            onClick={() => router.push('/auth')}
+            className="bg-indigo-600 text-white text-sm font-semibold px-5 py-2.5 rounded-xl hover:bg-indigo-700 transition shadow-md shadow-indigo-200"
+          >
+            Get Started Free
           </button>
         </div>
+      </nav>
 
-        {/* Deck Grid */}
-        {decks.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-24 gap-4 text-gray-400">
-            <BookOpen size={48} className="text-gray-200" />
-            <p className="text-lg font-medium">No decks yet</p>
-            <p className="text-sm">Upload a PDF to get started</p>
+      {/* Hero */}
+      <section className="text-center px-6 py-20 max-w-4xl mx-auto">
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+        >
+          <span className="bg-indigo-50 text-indigo-600 text-xs font-bold px-4 py-2 rounded-full inline-block mb-6 tracking-wide uppercase">
+            AI-Powered Study Tool
+          </span>
+          <h1 className="text-5xl md:text-6xl font-extrabold text-gray-900 leading-tight mb-6">
+            Turn any PDF into a{' '}
+            <span className="text-indigo-600">smart flashcard</span>{' '}
+            deck
+          </h1>
+          <p className="text-lg text-gray-500 max-w-2xl mx-auto mb-10 leading-relaxed">
+            Upload your notes, textbook chapters, or study guides. Our AI creates
+            high-quality flashcards instantly — then helps you master them with
+            spaced repetition.
+          </p>
+          <div className="flex items-center justify-center gap-4 flex-wrap">
+            <button
+              onClick={() => router.push('/auth')}
+              className="flex items-center gap-2 bg-indigo-600 text-white px-8 py-4 rounded-2xl font-bold text-lg hover:bg-indigo-700 transition shadow-xl shadow-indigo-200"
+            >
+              Start for Free <ArrowRight size={20} />
+            </button>
+            <p className="text-sm text-gray-400">No credit card required</p>
           </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {decks.map(deck => (
-              <DeckCard key={deck.id} deck={deck} />
+        </motion.div>
+      </section>
+
+      {/* Steps */}
+      <section className="bg-gradient-to-br from-indigo-50 to-purple-50 py-20 px-6">
+        <div className="max-w-5xl mx-auto">
+          <h2 className="text-3xl font-bold text-center text-gray-900 mb-4">
+            How it works
+          </h2>
+          <p className="text-center text-gray-400 mb-14 max-w-xl mx-auto">
+            From PDF to mastery in three simple steps
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {steps.map((s, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.15 }}
+                viewport={{ once: true }}
+                className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 text-center hover:shadow-md transition"
+              >
+                <div className="text-5xl mb-4">{s.icon}</div>
+                <p className="text-xs font-bold text-indigo-500 uppercase tracking-widest mb-2">{s.step}</p>
+                <h3 className="text-lg font-bold text-gray-800 mb-3">{s.title}</h3>
+                <p className="text-gray-400 text-sm leading-relaxed">{s.desc}</p>
+              </motion.div>
             ))}
           </div>
-        )}
-      </div>
+        </div>
+      </section>
 
-      {/* Upload Modal */}
-      <AnimatePresence>
-        {showUpload && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50"
-            onClick={() => !uploading && setShowUpload(false)}
-          >
+      {/* Features */}
+      <section className="py-20 px-6 max-w-5xl mx-auto">
+        <h2 className="text-3xl font-bold text-center text-gray-900 mb-4">
+          Why FlashMind?
+        </h2>
+        <p className="text-center text-gray-400 mb-14 max-w-xl mx-auto">
+          Built on cognitive science. Designed for real students.
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {features.map((f, i) => (
             <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-2xl p-8 w-full max-w-md shadow-2xl"
-              onClick={e => e.stopPropagation()}
+              key={i}
+              initial={{ opacity: 0, x: i % 2 === 0 ? -20 : 20 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              transition={{ delay: i * 0.1 }}
+              viewport={{ once: true }}
+              className="flex gap-4 bg-gray-50 rounded-2xl p-6 border border-gray-100 hover:border-indigo-200 transition"
             >
-              <h2 className="text-xl font-bold text-gray-800 mb-6">Create New Deck</h2>
-
-              {/* Emoji picker */}
-              <div className="flex gap-2 mb-4 flex-wrap">
-                {EMOJIS.map(e => (
-                  <button
-                    key={e}
-                    onClick={() => setEmoji(e)}
-                    className={`text-2xl p-2 rounded-lg transition ${emoji === e ? 'bg-indigo-100 ring-2 ring-indigo-400' : 'hover:bg-gray-100'}`}
-                  >
-                    {e}
-                  </button>
-                ))}
+              <div className="bg-white rounded-xl p-3 h-fit shadow-sm border border-gray-100">
+                {f.icon}
               </div>
-
-              <input
-                className="w-full border border-gray-200 rounded-xl px-4 py-3 mb-4 text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-400"
-                placeholder="Deck name (e.g. Quadratic Equations)"
-                value={deckName}
-                onChange={e => setDeckName(e.target.value)}
-                disabled={uploading}
-              />
-
-              <label className="flex flex-col items-center justify-center border-2 border-dashed border-gray-200 rounded-xl p-8 cursor-pointer hover:border-indigo-300 hover:bg-indigo-50 transition mb-4">
-                <Upload className="text-gray-300 mb-2" />
-                <span className="text-sm text-gray-500">
-                  {file ? file.name : 'Click to upload PDF'}
-                </span>
-                <input
-                  type="file"
-                  accept=".pdf"
-                  className="hidden"
-                  onChange={e => setFile(e.target.files?.[0] ?? null)}
-                  disabled={uploading}
-                />
-              </label>
-
-              {uploadStatus && (
-                <div className="text-sm text-indigo-600 text-center mb-4 animate-pulse">
-                  {uploadStatus}
-                </div>
-              )}
-
-              <button
-                onClick={handleUpload}
-                disabled={!file || !deckName || uploading}
-                className="w-full bg-indigo-600 text-white py-3 rounded-xl font-semibold hover:bg-indigo-700 transition disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                {uploading ? 'Generating...' : 'Generate Flashcards ✨'}
-              </button>
+              <div>
+                <h3 className="font-bold text-gray-800 mb-1">{f.title}</h3>
+                <p className="text-gray-400 text-sm leading-relaxed">{f.desc}</p>
+              </div>
             </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
+          ))}
+        </div>
+      </section>
 
-function DeckCard({ deck }: { deck: Deck }) {
-  return (
-    <motion.a
-      href={`/deck/${deck.id}`}
-      whileHover={{ y: -4 }}
-      className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm hover:shadow-md transition-all cursor-pointer block"
-    >
-      <div className="text-4xl mb-3">{deck.emoji}</div>
-      <h3 className="font-bold text-gray-800 text-lg mb-1">{deck.name}</h3>
-      <p className="text-sm text-gray-400">{deck.card_count} cards</p>
-      <div className="mt-4 flex items-center justify-between">
-        <span className="text-xs text-gray-300">
-          {new Date(deck.created_at).toLocaleDateString()}
-        </span>
-        <span className="text-xs bg-indigo-50 text-indigo-600 font-semibold px-3 py-1 rounded-full">
-          Study →
-        </span>
-      </div>
-    </motion.a>
+      {/* CTA Banner */}
+      <section className="bg-indigo-600 py-16 px-6 text-center">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          whileInView={{ opacity: 1, scale: 1 }}
+          viewport={{ once: true }}
+        >
+          <h2 className="text-3xl font-bold text-white mb-4">
+            Ready to study smarter?
+          </h2>
+          <p className="text-indigo-200 mb-8 max-w-xl mx-auto">
+            Join thousands of students who stopped re-reading and started actually learning.
+          </p>
+          <button
+            onClick={() => router.push('/auth')}
+            className="bg-white text-indigo-600 font-bold px-8 py-4 rounded-2xl hover:bg-indigo-50 transition shadow-xl text-lg"
+          >
+            Get Started Free →
+          </button>
+        </motion.div>
+      </section>
+
+      {/* Footer */}
+      <footer className="text-center py-8 text-gray-300 text-sm border-t border-gray-100">
+        <div className="flex items-center justify-center gap-2 mb-2">
+          <Brain size={16} className="text-indigo-400" />
+          <span className="font-semibold text-gray-500">FlashMind</span>
+        </div>
+        Built with AI · Powered by spaced repetition
+      </footer>
+    </div>
   );
 }

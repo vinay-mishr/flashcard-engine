@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateFlashcards } from '@/lib/claude';
 import { createClient } from '@supabase/supabase-js';
+import { extractText } from 'unpdf';
 
 interface GeneratedCard {
   front: string;
@@ -32,14 +33,11 @@ export async function POST(req: NextRequest) {
 
     if (!file) return NextResponse.json({ error: 'No file' }, { status: 400 });
 
-    // Parse PDF using dynamic import — avoids ESM/CJS conflicts
-    const buffer = Buffer.from(await file.arrayBuffer());
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const pdfParse = require('pdf-parse/lib/pdf-parse') as (buffer: Buffer) => Promise<{ text: string }>;
-    const parsed = await pdfParse(buffer);
-    const pdfText = parsed.text;
+    // Parse PDF using unpdf — works perfectly with Next.js
+    const arrayBuffer = await file.arrayBuffer();
+    const { text: pdfText } = await extractText(new Uint8Array(arrayBuffer), { mergePages: true });
 
-    if (!pdfText.trim()) {
+    if (!pdfText || !pdfText.trim()) {
       return NextResponse.json(
         { error: 'Could not extract text from PDF' },
         { status: 400 }
@@ -50,7 +48,7 @@ export async function POST(req: NextRequest) {
     const cards: GeneratedCard[] = await generateFlashcards(pdfText, deckName);
 
     // Save deck
-   const { data: deckData, error: deckError } = await supabase
+    const { data: deckData, error: deckError } = await supabase
       .from('decks')
       .insert({ name: deckName, pdf_name: file.name, emoji, card_count: cards.length })
       .select()
@@ -60,6 +58,7 @@ export async function POST(req: NextRequest) {
     if (!deckData) throw new Error('Deck was not created');
 
     const deck = deckData as DeckRow;
+
     // Save cards (trigger auto-creates card_progress)
     const cardRows = cards.map((c: GeneratedCard) => ({ ...c, deck_id: deck.id }));
     const { error: cardError } = await supabase.from('cards').insert(cardRows);
