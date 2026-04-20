@@ -1,9 +1,10 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, use } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
-import { motion, AnimatePresence } from 'framer-motion';
 import FlashCard from '@/components/FlashCard';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ArrowLeft } from 'lucide-react';
 
 interface CardProgress {
   next_review_at: string;
@@ -26,7 +27,8 @@ interface SessionStats {
   again: number;
 }
 
-export default function StudyPage({ params }: { params: { id: string } }) {
+export default function StudyPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
   const router = useRouter();
   const [cards, setCards] = useState<Card[]>([]);
   const [current, setCurrent] = useState(0);
@@ -51,7 +53,7 @@ export default function StudyPage({ params }: { params: { id: string } }) {
         const { data } = await supabase
           .from('cards')
           .select('*, card_progress(*)')
-          .eq('deck_id', params.id)
+          .eq('deck_id', id)
           .lte('card_progress.next_review_at', new Date().toISOString())
           .order('created_at');
 
@@ -65,7 +67,7 @@ export default function StudyPage({ params }: { params: { id: string } }) {
     return () => {
       cancelled = true;
     };
-  }, [params.id, router]);
+  }, [id, router]);
 
   async function handleRate(quality: 0 | 1 | 2 | 3 | 4 | 5) {
     const card = cards[current];
@@ -96,40 +98,46 @@ export default function StudyPage({ params }: { params: { id: string } }) {
   }
 
   if (done) {
+    const total = sessionStats.correct + sessionStats.hard + sessionStats.again;
+    const score = total > 0 ? Math.round((sessionStats.correct / total) * 100) : 0;
+
     return (
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         className="flex flex-col items-center justify-center h-screen gap-6 p-8"
       >
-        <div className="text-6xl">🎉</div>
+        <div className="text-6xl">{score >= 80 ? '🎉' : score >= 50 ? '💪' : '📚'}</div>
         <h1 className="text-3xl font-bold text-gray-800">Session Complete!</h1>
+        <p className="text-gray-400">
+          You scored <span className="font-bold text-indigo-600">{score}%</span> this session
+        </p>
         <div className="flex gap-6 text-center">
-          <div className="bg-green-50 rounded-2xl p-6">
+          <div className="bg-green-50 rounded-2xl p-6 min-w-24">
             <p className="text-3xl font-bold text-green-600">{sessionStats.correct}</p>
             <p className="text-sm text-green-500">Correct</p>
           </div>
-          <div className="bg-yellow-50 rounded-2xl p-6">
+          <div className="bg-yellow-50 rounded-2xl p-6 min-w-24">
             <p className="text-3xl font-bold text-yellow-600">{sessionStats.hard}</p>
             <p className="text-sm text-yellow-500">Hard</p>
           </div>
-          <div className="bg-red-50 rounded-2xl p-6">
+          <div className="bg-red-50 rounded-2xl p-6 min-w-24">
             <p className="text-3xl font-bold text-red-600">{sessionStats.again}</p>
             <p className="text-sm text-red-500">Again</p>
           </div>
         </div>
-        <div className="flex gap-3">
+        <div className="flex gap-3 mt-2">
           <button
-            onClick={() => router.push(`/deck/${params.id}`)}
-            className="bg-indigo-600 text-white px-8 py-3 rounded-xl font-semibold hover:bg-indigo-700 transition"
+            onClick={() => router.push(`/study/${id}`)}
+            className="bg-indigo-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-indigo-700 transition"
           >
-            Back to Deck
+            Study Again
           </button>
           <button
-            onClick={() => router.push('/dashboard')}
-            className="border border-gray-200 text-gray-500 px-8 py-3 rounded-xl font-semibold hover:bg-gray-50 transition"
+            onClick={() => router.push(`/deck/${id}`)}
+            className="border border-gray-200 text-gray-600 px-6 py-3 rounded-xl font-semibold hover:bg-gray-50 transition"
           >
-            Dashboard
+            Back to Deck
           </button>
         </div>
       </motion.div>
@@ -143,8 +151,8 @@ export default function StudyPage({ params }: { params: { id: string } }) {
         <h2 className="text-2xl font-bold text-gray-700">Nothing due today!</h2>
         <p className="text-gray-400">Come back tomorrow for your next review.</p>
         <button
-          onClick={() => router.push(`/deck/${params.id}`)}
-          className="mt-4 bg-indigo-600 text-white px-6 py-2 rounded-xl font-semibold hover:bg-indigo-700 transition"
+          onClick={() => router.push(`/deck/${id}`)}
+          className="mt-4 bg-indigo-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-indigo-700 transition"
         >
           Back to Deck
         </button>
@@ -158,12 +166,21 @@ export default function StudyPage({ params }: { params: { id: string } }) {
   return (
     <div className="min-h-screen bg-gray-50 p-6 flex flex-col">
 
+      {/* Top bar */}
+      <div className="max-w-2xl mx-auto w-full mb-6 flex items-center justify-between">
+        <button
+          onClick={() => router.push(`/deck/${id}`)}
+          className="flex items-center gap-1 text-gray-400 hover:text-gray-600 transition text-sm"
+        >
+          <ArrowLeft size={16} /> Exit
+        </button>
+        <span className="text-sm text-gray-400 font-medium">
+          {current + 1} / {cards.length}
+        </span>
+      </div>
+
       {/* Progress bar */}
       <div className="max-w-2xl mx-auto w-full mb-8">
-        <div className="flex justify-between text-sm text-gray-400 mb-2">
-          <span>{current + 1} of {cards.length}</span>
-          <span>{Math.round(progress)}% done</span>
-        </div>
         <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
           <motion.div
             className="h-full bg-indigo-500 rounded-full"
@@ -194,20 +211,6 @@ export default function StudyPage({ params }: { params: { id: string } }) {
           </motion.div>
         </AnimatePresence>
       </div>
-
-      {/* Bottom nav */}
-      <div className="max-w-2xl mx-auto w-full mt-6 flex justify-between items-center">
-        <button
-          onClick={() => router.push(`/deck/${params.id}`)}
-          className="text-sm text-gray-400 hover:text-gray-600 transition"
-        >
-          ← Exit Session
-        </button>
-        <p className="text-xs text-gray-300">
-          {cards.length - current - 1} cards remaining
-        </p>
-      </div>
-
     </div>
   );
 }

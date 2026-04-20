@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, use } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
@@ -22,7 +22,8 @@ interface Deck {
   created_at: string;
 }
 
-export default function DeckPage({ params }: { params: { id: string } }) {
+export default function DeckPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
   const router = useRouter();
   const [deck, setDeck] = useState<Deck | null>(null);
   const [cards, setCards] = useState<Card[]>([]);
@@ -33,13 +34,13 @@ export default function DeckPage({ params }: { params: { id: string } }) {
       const { data: deckData } = await supabase
         .from('decks')
         .select('*')
-        .eq('id', params.id)
+        .eq('id', id)
         .single();
 
       const { data: cardsData } = await supabase
         .from('cards')
         .select('*')
-        .eq('deck_id', params.id);
+        .eq('deck_id', id);
 
       setDeck(deckData as Deck);
       setCards((cardsData as Card[]) ?? []);
@@ -53,7 +54,7 @@ export default function DeckPage({ params }: { params: { id: string } }) {
         loadDeck();
       }
     });
-  }, [params.id, router]);
+  }, [id, router]);
 
   const categoryColors: Record<string, string> = {
     Definition: 'bg-blue-50 text-blue-600',
@@ -131,9 +132,7 @@ export default function DeckPage({ params }: { params: { id: string } }) {
               className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm hover:shadow-md transition"
             >
               {card.category && (
-                <span
-                  className={`text-xs font-semibold px-2 py-1 rounded-full mb-3 inline-block ${categoryColors[card.category] ?? 'bg-gray-50 text-gray-500'}`}
-                >
+                <span className={`text-xs font-semibold px-2 py-1 rounded-full mb-3 inline-block ${categoryColors[card.category] ?? 'bg-gray-50 text-gray-500'}`}>
                   {card.category}
                 </span>
               )}
@@ -141,10 +140,12 @@ export default function DeckPage({ params }: { params: { id: string } }) {
               <p className="text-gray-400 text-xs leading-relaxed border-t border-gray-50 pt-2">
                 {card.back}
               </p>
+              {card.hint && (
+                <p className="text-indigo-300 text-xs mt-2 italic">💡 {card.hint}</p>
+              )}
             </motion.div>
           ))}
         </div>
-
       </div>
     </div>
   );
